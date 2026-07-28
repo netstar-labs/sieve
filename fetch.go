@@ -9,11 +9,18 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 )
 
 // DefaultMaxBody caps a fetched snapshot/delta body. A partner-facing datashipper
 // must bound the body so a hostile or broken feed cannot OOM the consumer.
 const DefaultMaxBody = 1 << 30 // 1 GiB
+
+// DefaultTimeout bounds the whole fetch (dial + handshake + body). The body cap
+// limits bytes but not time; without a deadline a slow-loris feed that trickles
+// the body one byte at a time would hang the consumer forever. Raise it for very
+// large datasets over slow links.
+const DefaultTimeout = 5 * time.Minute
 
 var (
 	ErrBodyTooLarge = errors.New("sieve: fetch body exceeds the size cap")
@@ -25,10 +32,11 @@ var (
 // public-key pinning (SPKI SHA-256 of the leaf certificate). A datashipper with
 // neither is the risk the format leaves to the transport.
 type Client struct {
-	BaseURL   string       // e.g. https://feeds.netstar.dev
-	MaxBody   int64        // 0 => DefaultMaxBody
-	PinSHA256 [32]byte     // SHA-256 of the leaf cert SubjectPublicKeyInfo; zero => no pin
-	HTTP      *http.Client // nil => a client built from PinSHA256
+	BaseURL   string        // e.g. https://feeds.netstar.dev
+	MaxBody   int64         // 0 => DefaultMaxBody
+	Timeout   time.Duration // 0 => DefaultTimeout; overall per-fetch deadline
+	PinSHA256 [32]byte      // SHA-256 of the leaf cert SubjectPublicKeyInfo; zero => no pin
+	HTTP      *http.Client  // nil => a client built from PinSHA256
 }
 
 func (c *Client) maxBody() int64 {
@@ -36,6 +44,13 @@ func (c *Client) maxBody() int64 {
 		return c.MaxBody
 	}
 	return DefaultMaxBody
+}
+
+func (c *Client) timeout() time.Duration {
+	if c.Timeout > 0 {
+		return c.Timeout
+	}
+	return DefaultTimeout
 }
 
 func (c *Client) httpClient() *http.Client {
@@ -63,43 +78,42 @@ func (c *Client) httpClient() *http.Client {
 			return nil
 		}
 	}
-	return &http.Client{Transport: &http.Transport{TLSClientConfig: tc}}
+	return &http.Client{
+		Timeout:   c.timeout(),
+		Transport: &http.Transport{TLSClientConfig: tc, ResponseHeaderTimeout: c.timeout()},
+	}
 }
 
 // FetchSnapshot GETs and decodes a snapshot, bounding the body at MaxBody.
 func (c *Client) FetchSnapshot(path string) (*Snapshot, error) {
-	body, err := c.get(path)
-	if err != nil {
-		return nil, err
-	}
-	defer body.Close()
-	lr := &io.LimitedReader{R: body, N: c.maxBody() + 1}
-	snap, derr := Decode(lr)
-	if lr.N <= 0 {
-		return nil, ErrBodyTooLarge // consumed cap+1 bytes → oversized
-	}
-	if derr != nil {
-		return nil, derr
-	}
-	return snap, nil
+	return fetchDecode(c, path, Decode)
 }
 
 // FetchDelta GETs and decodes a delta, bounding the body at MaxBody.
 func (c *Client) FetchDelta(path string) (*Delta, error) {
+	return fetchDecode(c, path, DecodeDelta)
+}
+
+// fetchDecode is the shared body-cap-and-decode plumbing: GET, bound the body at
+// MaxBody+1 so an over-cap feed reliably reports ErrBodyTooLarge, and decode with
+// the given decoder. Keeping it in one place means the OOM guard has a single
+// implementation for both snapshots and deltas.
+func fetchDecode[T any](c *Client, path string, dec func(io.Reader) (T, error)) (T, error) {
+	var zero T
 	body, err := c.get(path)
 	if err != nil {
-		return nil, err
+		return zero, err
 	}
 	defer body.Close()
 	lr := &io.LimitedReader{R: body, N: c.maxBody() + 1}
-	d, derr := DecodeDelta(lr)
+	v, derr := dec(lr)
 	if lr.N <= 0 {
-		return nil, ErrBodyTooLarge
+		return zero, ErrBodyTooLarge // consumed cap+1 bytes → oversized
 	}
 	if derr != nil {
-		return nil, derr
+		return zero, derr
 	}
-	return d, nil
+	return v, nil
 }
 
 func (c *Client) get(path string) (io.ReadCloser, error) {

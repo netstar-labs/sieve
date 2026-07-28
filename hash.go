@@ -1,6 +1,7 @@
 package sieve
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/binary"
 )
@@ -31,3 +32,8 @@ func datasetHash(sorted []Hash) [32]byte {
 	}
 	return [32]byte(h.Sum(nil))
 }
+
+// compareHash orders hashes lexicographically — the single comparator behind the
+// sorted hash set, its dedup, the decoder's strictly-increasing check, and the
+// confirm-tier binary search.
+func compareHash(a, b Hash) int { return bytes.Compare(a[:], b[:]) }

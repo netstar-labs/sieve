@@ -2,7 +2,6 @@ package sieve
 
 import (
 	"bufio"
-	"bytes"
 	"encoding/binary"
 	"errors"
 	"io"
@@ -142,6 +141,6 @@ func readCount(br *bufio.Reader) (uint32, error) {
 
 func sortedDedup(hs []Hash) []Hash {
 	out := slices.Clone(hs)
-	slices.SortFunc(out, func(a, b Hash) int { return bytes.Compare(a[:], b[:]) })
+	slices.SortFunc(out, compareHash)
 	return slices.CompactFunc(out, func(a, b Hash) bool { return a == b })
 }

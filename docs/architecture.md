@@ -34,7 +34,7 @@ at the cost of always consulting the `Set`.
 ## Expansion
 
 One canonical key is expanded into ≤30 expressions — up to 5 host suffixes
-(exact host + last-4…last-2 label suffixes; IPs are not suffixed) × up to 6 path
+(exact host + last-5…last-2 label suffixes; IPs are not suffixed) × up to 6 path
 prefixes (exact ±query, then `/`, `/a/`, `/a/b/`, `/a/b/c/`). Listing granularity
 is the publisher's: an exact URL, a directory, or a whole host (`host/`).
 

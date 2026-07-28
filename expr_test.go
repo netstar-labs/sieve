@@ -58,7 +58,7 @@ func TestExpandBareHost(t *testing.T) {
 }
 
 func TestExpandHostCapFive(t *testing.T) {
-	// a deep host yields at most 5 host variants (exact + last-4..last-2 suffixes).
+	// a deep host yields at most 5 host variants (exact + last-5..last-2 suffixes).
 	got := Expand("a.b.c.d.e.f.example.com/")
 	hosts := map[string]bool{}
 	for _, e := range got {

@@ -1,7 +1,6 @@
 package sieve
 
 import (
-	"bytes"
 	"slices"
 	"sync/atomic"
 )
@@ -28,7 +27,9 @@ func buildIndex(s *Snapshot) *index {
 // Store holds the live dataset behind an atomic pointer: readers load it
 // lock-free, and an update swaps in a freshly built immutable index. A concurrent
 // lookup during a swap always sees one complete index — the old or the new —
-// never a half-built one.
+// never a half-built one. Reads scale to any number of goroutines; updates
+// (Install/ApplyDelta) are single-writer — drive them from one loop, since they
+// are a plain load-modify-store and two concurrent updaters could lose one.
 type Store struct {
 	cur atomic.Pointer[index]
 }
@@ -59,6 +60,6 @@ func (s *Store) current() *index { return s.cur.Load() }
 
 // containsHash binary-searches the sorted confirm tier.
 func containsHash(sorted []Hash, h Hash) bool {
-	_, ok := slices.BinarySearchFunc(sorted, h, func(a, b Hash) int { return bytes.Compare(a[:], b[:]) })
+	_, ok := slices.BinarySearchFunc(sorted, h, compareHash)
 	return ok
 }

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 )
 
 func serveBytes(t *testing.T, body []byte) *httptest.Server {
@@ -69,6 +70,25 @@ func TestFetchDelta(t *testing.T) {
 	}
 	if got.Epoch != 3 || len(got.Adds) != 1 {
 		t.Errorf("delta = %+v", got)
+	}
+}
+
+// A feed that stalls the body (never finishing) must not hang the consumer: the
+// client's overall deadline aborts it. Bytes are capped by MaxBody; time by Timeout.
+func TestFetchTimeout(t *testing.T) {
+	release := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
+		<-release // hold the response open past the client deadline
+	}))
+	t.Cleanup(func() { close(release); srv.Close() })
+
+	start := time.Now()
+	_, err := (&Client{BaseURL: srv.URL, Timeout: 100 * time.Millisecond}).FetchSnapshot("/")
+	if err == nil {
+		t.Fatal("expected a timeout error from a stalled feed")
+	}
+	if elapsed := time.Since(start); elapsed > 2*time.Second {
+		t.Errorf("took %v — the deadline was not enforced", elapsed)
 	}
 }
 

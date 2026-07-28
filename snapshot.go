@@ -2,12 +2,10 @@ package sieve
 
 import (
 	"bufio"
-	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
-	"slices"
 )
 
 const (
@@ -54,9 +52,7 @@ type Snapshot struct {
 // and stamps the dataset hash. profile/expander/idna record the canonicalization
 // the entries were built under.
 func NewSnapshot(profile, expander, idna string, epoch uint64, hashes []Hash) *Snapshot {
-	sorted := slices.Clone(hashes)
-	slices.SortFunc(sorted, func(a, b Hash) int { return bytes.Compare(a[:], b[:]) })
-	sorted = slices.CompactFunc(sorted, func(a, b Hash) bool { return a == b })
+	sorted := sortedDedup(hashes)
 	return &Snapshot{
 		Header: Header{
 			Version: snapVersion, Profile: profile, Expander: expander, IDNA: idna,
@@ -171,7 +167,7 @@ func readHashes(br *bufio.Reader, count uint32) ([]Hash, error) {
 		if _, err := io.ReadFull(br, h[:]); err != nil {
 			return nil, ErrTruncated
 		}
-		if i > 0 && bytes.Compare(h[:], prev[:]) <= 0 {
+		if i > 0 && compareHash(h, prev) <= 0 {
 			return nil, ErrNotSorted // catches both unsorted and duplicate
 		}
 		out = append(out, h)

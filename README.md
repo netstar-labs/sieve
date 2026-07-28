@@ -2,7 +2,7 @@
 
 A standalone, partner-facing **URL-reputation matcher**: *is this URL in our
 dataset?* — answered offline, exactly, and lock-free against a netstar dataset
-shipped as an immutable snapshot plus signed deltas.
+shipped as an immutable snapshot plus self-verifying deltas.
 
 ```
   URL ─▶ canonicalize ─▶ Expand (≤30 host×path) ─▶ SHA-256

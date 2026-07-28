@@ -46,7 +46,6 @@ func splitHostPath(u string) (host, path string) {
 	if i := strings.Index(u, "://"); i >= 0 {
 		u = u[i+3:]
 	}
-	end := len(u)
 	slash := strings.IndexByte(u, '/')
 	q := strings.IndexByte(u, '?')
 	switch {
@@ -56,7 +55,6 @@ func splitHostPath(u string) (host, path string) {
 		// query before any path separator: host ends at '?', path is "/?..."
 		return u[:q], "/" + u[q:]
 	default:
-		_ = end
 		return u[:slash], u[slash:]
 	}
 }

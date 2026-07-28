@@ -15,7 +15,7 @@ small, auditable trust surface.
 - **Exact, offline answers.** The dataset ships full hashes, so a prefix hit is
   confirmed locally — no ~1-in-4-billion false match, and no remote round-trip
   that would leak the queried URL.
-- **Cheap distribution.** An immutable snapshot plus signed deltas; the live
+- **Cheap distribution.** An immutable snapshot plus self-verifying deltas; the live
   dataset swaps atomically, so lookups never block on an update.
 - **Safe on the wire.** The fetch client caps the body (no OOM from a hostile
   feed) and pins the server key (no impersonation) — safeguards the file format

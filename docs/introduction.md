@@ -1,4 +1,6 @@
-# Introduction
+# sieve — catch only what you came for
+
+*Millions of URLs fall straight through the mesh; the handful you're hunting stay behind.*
 
 A sieve sorts by passing the ordinary through and catching only what you are
 looking for. This one is handed a URL and asked a single question — *is this one
@@ -11,7 +13,7 @@ the ≤30 host-suffix × path-prefix expressions a listing might have been publi
 at, and each is SHA-256 hashed. A compact cuckoo filter and a sorted 32-bit prefix
 set discard the clean cases in a cache line or two; the handful that survive are
 confirmed against a sorted table of full hashes, so a hit is *exact*. The dataset
-is an immutable snapshot evolved by signed deltas, held behind an atomic pointer
+is an immutable snapshot evolved by self-verifying deltas, held behind an atomic pointer
 so millions of lookups read it without a lock while a new one swaps in underneath.
 
 **The thing nobody else gives you here:** exactness with no phone-home. Because the

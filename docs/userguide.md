@@ -73,7 +73,7 @@ strictly-increasing order, checksum / self-verifying convergence). See
 | | Magic | Body |
 |---|---|---|
 | Snapshot | `SIEV` | header (version · profile · expander · idna · epoch · count · dataset-hash) + sorted full hashes |
-| Delta | `SIVD` | base · target · epoch · adds · removes (each sorted) |
+| Delta | `SIVD` | version · base · target · epoch · add-count · remove-count · adds · removes (each sorted) |
 
 ## Operational notes
 
