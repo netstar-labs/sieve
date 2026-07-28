@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# build/sieve — cross-compile the sieve CLI for linux/amd64 with a git-describe
+# version stamp. Output (gitignored) lands in build/bin/. Usage: build/sieve
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+version="$(git describe --tags --always --dirty 2>/dev/null || echo dev)"
+out="build/bin"
+mkdir -p "$out"
+
+GOWORK=off GOPRIVATE=github.com/netstar-labs \
+GOOS=linux GOARCH=amd64 CGO_ENABLED=0 \
+  go build -trimpath -ldflags "-s -w" -o "$out/sieve" ./app/sieve
+
+printf '%s\n' "$version" > "$out/sieve.version"
+echo "built $out/sieve (linux/amd64, $version)"

@@ -1,0 +1,9 @@
+# Review routing. Replace the placeholder team with the real org team slug.
+*                      @netstar-labs/engineering
+
+# Security-sensitive surfaces (attacker-facing decoders, the fetch/TLS path, the
+# wire format) require a maintainer's review.
+# /snapshot.go          @netstar-labs/maintainers
+# /delta.go             @netstar-labs/maintainers
+# /fetch.go             @netstar-labs/maintainers
+# /build/**             @netstar-labs/maintainers
