@@ -10,8 +10,8 @@ const (
 // answers maybe. It fronts the authoritative [Set] so the miss-dominated query
 // path skips the binary search on a true negative; a false positive merely falls
 // through to the Set, so the filter is a latency win, never a correctness input.
-// Unlike a Bloom filter it supports delete, which is why the dataset can evolve
-// by delta rather than only by full rebuild.
+// A delta evolves the dataset by rebuilding this filter from the updated hash
+// set rather than mutating it in place.
 //
 // Every stored fingerprint lives in one of its item's two candidate buckets
 // (the eviction walk preserves that), so checking both candidates can never miss
@@ -112,30 +112,6 @@ func (c *cuckoo) hasFP(i uint32, f uint16) bool {
 	b := &c.buckets[i]
 	for s := range b {
 		if b[s] == f {
-			return true
-		}
-	}
-	return false
-}
-
-// delete removes one occurrence of x's fingerprint. Like any cuckoo filter it may
-// remove the slot of a DIFFERENT item that shares both fingerprint and bucket, so
-// only delete items known to have been added; the Store rebuilds the index from
-// the authoritative hash set on a delta rather than relying on incremental delete.
-func (c *cuckoo) delete(x uint32) bool {
-	if c.saturated {
-		return false
-	}
-	f := fingerprint(x)
-	i := c.i1(x)
-	return c.removeFP(i, f) || c.removeFP(c.alt(i, f), f)
-}
-
-func (c *cuckoo) removeFP(i uint32, f uint16) bool {
-	b := &c.buckets[i]
-	for s := range b {
-		if b[s] == f {
-			b[s] = 0
 			return true
 		}
 	}

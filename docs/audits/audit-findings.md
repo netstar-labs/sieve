@@ -62,3 +62,19 @@ SECURITY framing of this was REFUTED — see below — it is a doc issue, not a 
 - **`Store.ApplyDelta` non-atomic load-modify-store** — true mechanically, but updates are
   single-writer by contract (one fetch loop); lock-free *reads* are the guarantee. Clarified
   in the `Store` doc comment rather than adding a CAS.
+
+## Revisited, 2026-09-29 — least-code pass
+
+A later least-code audit reopened three of the items kept above, applying a narrower test
+(rung 1 of the ladder: does a caller exist *today*, not the one a future feature would need)
+than this audit did. All three of this audit's own kept-reasons named a future feature with
+no design doc, no issue, and — confirmed by re-grepping the repo — no caller: `cuckoo.delete`/
+`removeFP` (incremental filter deltas), `ConfirmNeeded` (a prefix-only snapshot mode; also
+confirmed unreachable from any real construction path, since the confirm tier and the Set/
+filter are always co-derived from the same hash slice), and `Set.Hash()` (a Phase-1
+content-addressable prefix-index hash). All three removed, along with the tests written to
+exercise them and every doc line that referenced them (including two doc-comment claims,
+`cuckoo.go` and `delta.go`, that deletion is why the prefilter is a cuckoo rather than a
+Bloom filter — inaccurate independent of this change, since delta application has always
+rebuilt the filter rather than mutating it incrementally). ~40 lines removed, zero behavior
+change to any currently reachable code path.

@@ -20,7 +20,7 @@ d, _ := sieve.DecodeDelta(deltaStream)
 if err := m.ApplyDelta(d); err != nil { /* wrong base / non-convergent */ }
 ```
 
-`Lookup` returns a `Match`: `Verdict` (`Clean` / `Listed` / `ConfirmNeeded`), the
+`Lookup` returns a `Match`: `Verdict` (`Clean` / `Listed`), the
 matching `Prefix` and `Expression`, and the dataset stamps (`Profile`, `Expander`,
 `IDNA`). Reads are lock-free and safe under concurrency; `Install`/`ApplyDelta`
 swap the dataset atomically.
