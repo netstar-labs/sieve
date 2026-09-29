@@ -48,24 +48,6 @@ func TestCuckooLowFalsePositive(t *testing.T) {
 	}
 }
 
-func TestCuckooDelete(t *testing.T) {
-	c := newCuckoo(100)
-	x := uint32(0xDEADBEEF)
-	c.add(x)
-	if !c.contains(x) {
-		t.Fatal("contains false right after add")
-	}
-	if !c.delete(x) {
-		t.Fatal("delete returned false for a present item")
-	}
-	if c.contains(x) {
-		t.Error("still present after delete (single item, no collision)")
-	}
-	if c.delete(x) {
-		t.Error("second delete of an absent item returned true")
-	}
-}
-
 // Even when insertion overflows and the filter saturates, the no-false-negative
 // guarantee must hold (saturated => always maybe).
 func TestCuckooSaturateKeepsNoFalseNegative(t *testing.T) {

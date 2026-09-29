@@ -31,8 +31,8 @@ dependencies**. A match is exact — the dataset ships full hashes, so there is 
 |---|---|
 | [sieve.go](sieve.go) | Package doc, the `Canon` seam, `Verdict`/`Match`, and the `Matcher` facade (`New`/`Install`/`ApplyDelta`/`Lookup`). |
 | [hash.go](hash.go) | `Hash`, `HashURL`, `Prefix`, and the dataset identity hash. |
-| [set.go](set.go) | `Set` — the sorted/deduped `[]uint32` prefix prefilter (binary search + `Hash`). |
-| [cuckoo.go](cuckoo.go) | The cuckoo filter — no false negatives, deletable, saturate-safe. |
+| [set.go](set.go) | `Set` — the sorted/deduped `[]uint32` prefix prefilter (binary search). |
+| [cuckoo.go](cuckoo.go) | The cuckoo filter — no false negatives, saturate-safe. |
 | [expr.go](expr.go) | `Expand` — host-suffix × path-prefix expansion (≤30). |
 | [snapshot.go](snapshot.go) | `Snapshot` + the attacker-facing wire codec. |
 | [delta.go](delta.go) | `Delta` + codec + self-verifying `Apply`. |

@@ -56,7 +56,8 @@ complete index — the old or the new — never a torn one. This is exercised un
   malformed stream returns an error, never a panic or OOM. Continuously fuzzed.
 - **Delta** — `adds`/`removes` anchored at both ends: it refuses the wrong base and
   refuses a result that does not hash to the declared target (self-verifying
-  convergence). Deletion is why the prefilter is a cuckoo, not a Bloom, filter.
+  convergence). The prefilter is rebuilt from scratch on every delta rather than
+  mutated incrementally today.
 - **Fetch** — HTTPS with an `io.LimitedReader` body cap (no OOM from a hostile
   feed) and SPKI SHA-256 pinning of the leaf certificate (the pin replaces chain
   trust). These live in the transport because the dataset format cannot provide
@@ -80,5 +81,3 @@ observable.
   decoder minimal.
 - **Delta rebuilds the derived index.** v0.1.0 applies a delta to the hash set and
   rebuilds the Set + filter; incremental filter mutation is a later optimization.
-- **`ConfirmNeeded`** is defined for a future prefix-only (space-constrained)
-  snapshot mode; the default full-hash snapshot resolves every hit to `Listed`/`Clean`.
