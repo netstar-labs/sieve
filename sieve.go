@@ -31,19 +31,12 @@ const (
 	Clean Verdict = iota
 	// Listed: an expression matched a full hash — authoritative.
 	Listed
-	// ConfirmNeeded: a prefix matched but the loaded snapshot carries no full-hash
-	// confirm tier (a space-constrained, prefix-only dataset). The default
-	// full-hash snapshot resolves every prefix hit to Listed or Clean and never
-	// returns this; it is reserved for the prefix-only variant.
-	ConfirmNeeded
 )
 
 func (v Verdict) String() string {
 	switch v {
 	case Listed:
 		return "listed"
-	case ConfirmNeeded:
-		return "confirm-needed"
 	default:
 		return "clean"
 	}
@@ -109,9 +102,6 @@ func (m *Matcher) Lookup(rawURL string) Match {
 		}
 		if !idx.set.Contains(p) {
 			continue // prefilter false positive
-		}
-		if len(idx.confirm) == 0 {
-			return stamp(ConfirmNeeded, p, expr) // prefix-only dataset
 		}
 		if containsHash(idx.confirm, h) {
 			return stamp(Listed, p, expr)

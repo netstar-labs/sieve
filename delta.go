@@ -20,8 +20,7 @@ var (
 // Delta evolves one snapshot into the next: remove Removes, add Adds, restamp the
 // epoch. It is anchored at both ends — Base pins the snapshot it applies to and
 // Target pins the result — so applying to the wrong base is rejected and the
-// result is self-verifying (it must hash to Target). Deletion is why the prefilter
-// is a cuckoo, not a Bloom, filter.
+// result is self-verifying (it must hash to Target).
 type Delta struct {
 	Base    [32]byte
 	Target  [32]byte

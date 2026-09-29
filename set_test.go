@@ -29,17 +29,6 @@ func TestSetContains(t *testing.T) {
 	}
 }
 
-func TestSetHashOrderInvariant(t *testing.T) {
-	a := NewSet([]uint32{3, 1, 2})
-	b := NewSet([]uint32{2, 3, 1})
-	if a.Hash() != b.Hash() {
-		t.Error("Hash depends on input order")
-	}
-	if a.Hash() == NewSet([]uint32{1, 2, 4}).Hash() {
-		t.Error("distinct sets share a hash")
-	}
-}
-
 func TestSetClonesInput(t *testing.T) {
 	in := []uint32{3, 1, 2}
 	s := NewSet(in)

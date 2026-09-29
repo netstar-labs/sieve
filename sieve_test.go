@@ -70,7 +70,7 @@ func TestMatcherApplyDelta(t *testing.T) {
 }
 
 func TestVerdictString(t *testing.T) {
-	for v, want := range map[Verdict]string{Clean: "clean", Listed: "listed", ConfirmNeeded: "confirm-needed"} {
+	for v, want := range map[Verdict]string{Clean: "clean", Listed: "listed"} {
 		if v.String() != want {
 			t.Errorf("Verdict(%d).String() = %q, want %q", v, v.String(), want)
 		}
