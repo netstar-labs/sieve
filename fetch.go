@@ -32,7 +32,7 @@ var (
 // public-key pinning (SPKI SHA-256 of the leaf certificate). A datashipper with
 // neither is the risk the format leaves to the transport.
 type Client struct {
-	BaseURL   string        // e.g. https://feeds.nsgrid.co
+	BaseURL   string        // e.g. https://example.com
 	MaxBody   int64         // 0 => DefaultMaxBody
 	Timeout   time.Duration // 0 => DefaultTimeout; overall per-fetch deadline
 	PinSHA256 [32]byte      // SHA-256 of the leaf cert SubjectPublicKeyInfo; zero => no pin
@@ -60,16 +60,14 @@ func (c *Client) httpClient() *http.Client {
 	// Pin the floor rather than inherit it. An unset MinVersion is not TLS 1.0 —
 	// crypto/tls already refuses anything below 1.2 (common.go, supportedVersions)
 	// — but it leaves the floor implicit, so it moves if the toolchain's default
-	// moves, and it made sieve the only one of the org's five pinned-TLS clients
+	// moves, and it made sieve the only one of the org's pinned-TLS clients
 	// without a stated minimum.
 	//
 	// 1.3 is verified against the endpoints this client is for, not assumed:
-	// feeds.nsgrid.co and bundles.nsgrid.co each completed 12 of 12 fresh
-	// TLS-1.3-only handshakes, and all three storage nodes accept 1.3-only
-	// directly by IP for both SNI names. If a future publisher genuinely cannot
-	// do 1.3, lower this to VersionTLS12 and name that publisher here — a bare
-	// downgrade with no reason is how the floor became implicit in the first
-	// place.
+	// every endpoint tested completed clean TLS-1.3-only handshakes across
+	// repeated attempts. If a future publisher genuinely cannot do 1.3, lower
+	// this to VersionTLS12 and name that publisher here — a bare downgrade
+	// with no reason is how the floor became implicit in the first place.
 	tc := &tls.Config{MinVersion: tls.VersionTLS13}
 	var zero [32]byte
 	if c.PinSHA256 != zero {

@@ -114,14 +114,14 @@ func TestFetchTLSPin(t *testing.T) {
 	}
 }
 
-// The TLS floor is an invariant, not an incidental. sieve is one of five
+// The TLS floor is an invariant, not an incidental. sieve is one of several
 // pinned-TLS clients in the org and was the only one without a stated minimum;
-// the four others drifted apart on exactly these fields precisely because
-// nothing asserted them. This is the guard rail, not the fix.
+// the others drifted apart on exactly these fields precisely because nothing
+// asserted them. This is the guard rail, not the fix.
 func TestHTTPClientPinsTLSFloor(t *testing.T) {
 	for name, c := range map[string]*Client{
-		"no pin":   {BaseURL: "https://feeds.nsgrid.co"},
-		"with pin": {BaseURL: "https://feeds.nsgrid.co", PinSHA256: [32]byte{1}},
+		"no pin":   {BaseURL: "https://example.com"},
+		"with pin": {BaseURL: "https://example.com", PinSHA256: [32]byte{1}},
 	} {
 		t.Run(name, func(t *testing.T) {
 			tr, ok := c.httpClient().Transport.(*http.Transport)
@@ -145,7 +145,7 @@ func TestHTTPClientPinsTLSFloor(t *testing.T) {
 // anything on their behalf.
 func TestSuppliedHTTPClientIsUsedVerbatim(t *testing.T) {
 	mine := &http.Client{}
-	c := &Client{BaseURL: "https://feeds.nsgrid.co", HTTP: mine}
+	c := &Client{BaseURL: "https://example.com", HTTP: mine}
 	if got := c.httpClient(); got != mine {
 		t.Fatal("a caller-supplied HTTP client was replaced")
 	}
@@ -154,7 +154,7 @@ func TestSuppliedHTTPClientIsUsedVerbatim(t *testing.T) {
 // Without a pin, chain validation must stay ON — the zero PinSHA256 is a
 // public-feed affordance, not a licence to skip verification.
 func TestNoPinKeepsChainValidation(t *testing.T) {
-	c := &Client{BaseURL: "https://feeds.nsgrid.co"}
+	c := &Client{BaseURL: "https://example.com"}
 	tr := c.httpClient().Transport.(*http.Transport)
 	if tr.TLSClientConfig.InsecureSkipVerify {
 		t.Fatal("InsecureSkipVerify is on with no pin: nothing would authenticate the server")
@@ -164,7 +164,7 @@ func TestNoPinKeepsChainValidation(t *testing.T) {
 	}
 
 	// With a pin, the inverse: the pin replaces chain trust.
-	p := &Client{BaseURL: "https://feeds.nsgrid.co", PinSHA256: [32]byte{1}}
+	p := &Client{BaseURL: "https://example.com", PinSHA256: [32]byte{1}}
 	ptr := p.httpClient().Transport.(*http.Transport)
 	if !ptr.TLSClientConfig.InsecureSkipVerify {
 		t.Fatal("with a pin, InsecureSkipVerify must be on — it is what routes the leaf to the pinner")

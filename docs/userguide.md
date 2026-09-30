@@ -29,7 +29,7 @@ swap the dataset atomically.
 
 ```go
 c := &sieve.Client{
-    BaseURL:   "https://feeds.nsgrid.co",
+    BaseURL:   "https://example.com",
     MaxBody:   256 << 20,       // cap the body (0 ⇒ 1 GiB default)
     PinSHA256: spkiPin,          // SHA-256 of the server leaf SPKI
 }
