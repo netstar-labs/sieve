@@ -116,8 +116,8 @@ func (d *Delta) Encode(w io.Writer) error {
 func DecodeDelta(r io.Reader) (*Delta, error) {
 	br := bufio.NewReader(r)
 	var magic [4]byte
-	if _, err := io.ReadFull(br, magic[:]); err != nil {
-		return nil, ErrTruncated
+	if err := readExact(br, magic[:]); err != nil {
+		return nil, err
 	}
 	if magic != deltaMagic {
 		return nil, ErrBadMagic
@@ -130,11 +130,11 @@ func DecodeDelta(r io.Reader) (*Delta, error) {
 		return nil, ErrVersion
 	}
 	d := &Delta{}
-	if _, err := io.ReadFull(br, d.Base[:]); err != nil {
-		return nil, ErrTruncated
+	if err := readExact(br, d.Base[:]); err != nil {
+		return nil, err
 	}
-	if _, err := io.ReadFull(br, d.Target[:]); err != nil {
-		return nil, ErrTruncated
+	if err := readExact(br, d.Target[:]); err != nil {
+		return nil, err
 	}
 	if d.Profile, err = readField(br); err != nil {
 		return nil, err
@@ -145,16 +145,14 @@ func DecodeDelta(r io.Reader) (*Delta, error) {
 	if d.IDNA, err = readField(br); err != nil {
 		return nil, err
 	}
-	var num [8]byte
-	if _, err := io.ReadFull(br, num[:]); err != nil {
-		return nil, ErrTruncated
+	if d.Epoch, err = readUint64(br); err != nil {
+		return nil, err
 	}
-	d.Epoch = binary.BigEndian.Uint64(num[:])
-	nAdd, err := readCount(br)
+	nAdd, err := readUint32(br)
 	if err != nil {
 		return nil, err
 	}
-	nRem, err := readCount(br)
+	nRem, err := readUint32(br)
 	if err != nil {
 		return nil, err
 	}
@@ -165,14 +163,6 @@ func DecodeDelta(r io.Reader) (*Delta, error) {
 		return nil, err
 	}
 	return d, nil
-}
-
-func readCount(br *bufio.Reader) (uint32, error) {
-	var b [4]byte
-	if _, err := io.ReadFull(br, b[:]); err != nil {
-		return 0, ErrTruncated
-	}
-	return binary.BigEndian.Uint32(b[:]), nil
 }
 
 func sortedDedup(hs []Hash) []Hash {
