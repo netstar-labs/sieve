@@ -36,7 +36,11 @@ type Client struct {
 	MaxBody   int64         // 0 => DefaultMaxBody
 	Timeout   time.Duration // 0 => DefaultTimeout; overall per-fetch deadline
 	PinSHA256 [32]byte      // SHA-256 of the leaf cert SubjectPublicKeyInfo; zero => no pin
-	HTTP      *http.Client  // nil => a client built from PinSHA256
+	// HTTP is used verbatim when non-nil — which means PinSHA256 and the TLS-1.3
+	// floor below are NOT applied in that case; supplying your own *http.Client
+	// takes over TLS configuration entirely, including pinning. Nil builds one
+	// from PinSHA256.
+	HTTP *http.Client
 }
 
 func (c *Client) maxBody() int64 {

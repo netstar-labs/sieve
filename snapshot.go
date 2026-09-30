@@ -32,7 +32,6 @@ var (
 // contract — build and query must pin the same one or Unicode-host hashes silently
 // won't match (a blocklist false-negative), so it travels in the header.
 type Header struct {
-	Version  uint8
 	Profile  string
 	Expander string
 	IDNA     string
@@ -55,7 +54,7 @@ func NewSnapshot(profile, expander, idna string, epoch uint64, hashes []Hash) *S
 	sorted := sortedDedup(hashes)
 	return &Snapshot{
 		Header: Header{
-			Version: snapVersion, Profile: profile, Expander: expander, IDNA: idna,
+			Profile: profile, Expander: expander, IDNA: idna,
 			Epoch: epoch, Count: uint32(len(sorted)), SetHash: datasetHash(sorted),
 		},
 		Hashes: sorted,
@@ -104,8 +103,8 @@ func (s *Snapshot) Encode(w io.Writer) error {
 func Decode(r io.Reader) (*Snapshot, error) {
 	br := bufio.NewReader(r)
 	var magic [4]byte
-	if _, err := io.ReadFull(br, magic[:]); err != nil {
-		return nil, ErrTruncated
+	if err := readExact(br, magic[:]); err != nil {
+		return nil, err
 	}
 	if magic != snapMagic {
 		return nil, ErrBadMagic
@@ -117,7 +116,7 @@ func Decode(r io.Reader) (*Snapshot, error) {
 	if ver != snapVersion {
 		return nil, fmt.Errorf("%w: %d", ErrVersion, ver)
 	}
-	h := Header{Version: ver}
+	h := Header{}
 	if h.Profile, err = readField(br); err != nil {
 		return nil, err
 	}
@@ -127,20 +126,17 @@ func Decode(r io.Reader) (*Snapshot, error) {
 	if h.IDNA, err = readField(br); err != nil {
 		return nil, err
 	}
-	var num [8]byte
-	if _, err := io.ReadFull(br, num[:]); err != nil {
-		return nil, ErrTruncated
+	if h.Epoch, err = readUint64(br); err != nil {
+		return nil, err
 	}
-	h.Epoch = binary.BigEndian.Uint64(num[:])
-	if _, err := io.ReadFull(br, num[:4]); err != nil {
-		return nil, ErrTruncated
+	if h.Count, err = readUint32(br); err != nil {
+		return nil, err
 	}
-	h.Count = binary.BigEndian.Uint32(num[:4])
 	if h.Count > maxSnapCount {
 		return nil, ErrTooLarge
 	}
-	if _, err := io.ReadFull(br, h.SetHash[:]); err != nil {
-		return nil, ErrTruncated
+	if err := readExact(br, h.SetHash[:]); err != nil {
+		return nil, err
 	}
 	hashes, err := readHashes(br, h.Count)
 	if err != nil {
@@ -174,6 +170,35 @@ func readHashes(br *bufio.Reader, count uint32) ([]Hash, error) {
 		prev = h
 	}
 	return out, nil
+}
+
+// readExact, readUint32, and readUint64 are the shared fixed-width wire-field
+// primitives: both Decode and DecodeDelta read a run of magic/version/hash/
+// count fields, each as "read N bytes or fail with ErrTruncated". One point of
+// truth for that byte-order/width pairing means a future field addition can't
+// get the endianness or error-wrapping subtly wrong in one decoder but not the
+// other.
+func readExact(br *bufio.Reader, buf []byte) error {
+	if _, err := io.ReadFull(br, buf); err != nil {
+		return ErrTruncated
+	}
+	return nil
+}
+
+func readUint32(br *bufio.Reader) (uint32, error) {
+	var b [4]byte
+	if err := readExact(br, b[:]); err != nil {
+		return 0, err
+	}
+	return binary.BigEndian.Uint32(b[:]), nil
+}
+
+func readUint64(br *bufio.Reader) (uint64, error) {
+	var b [8]byte
+	if err := readExact(br, b[:]); err != nil {
+		return 0, err
+	}
+	return binary.BigEndian.Uint64(b[:]), nil
 }
 
 func readField(br *bufio.Reader) (string, error) {

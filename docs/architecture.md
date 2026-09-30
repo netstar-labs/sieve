@@ -79,5 +79,9 @@ observable.
   28 of every 32 bytes are incompressible, so gap-encoding buys little — compression
   is left to the transport (gzip). Storing hashes raw also keeps the attacker-facing
   decoder minimal.
-- **Delta rebuilds the derived index.** v0.1.0 applies a delta to the hash set and
-  rebuilds the Set + filter; incremental filter mutation is a later optimization.
+- **Delta rebuilds the derived index.** Applying a delta rebuilds the hash set,
+  the `Set`, and the cuckoo filter from scratch rather than mutating any of them
+  incrementally — still true as of v0.1.2. The scaffolding for an eventual
+  incremental-mutation optimization (`cuckoo.delete`/`removeFP`) was removed as
+  unreachable dead code (2026-09-29); a real optimization here would need its
+  own justification, not a revival of that code.

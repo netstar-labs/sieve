@@ -24,26 +24,26 @@ func buildIndex(s *Snapshot) *index {
 	return &index{header: s.Header, set: set, filter: filter, confirm: s.Hashes}
 }
 
-// Store holds the live dataset behind an atomic pointer: readers load it
+// store holds the live dataset behind an atomic pointer: readers load it
 // lock-free, and an update swaps in a freshly built immutable index. A concurrent
 // lookup during a swap always sees one complete index — the old or the new —
 // never a half-built one. Reads scale to any number of goroutines; updates
 // (Install/ApplyDelta) are single-writer — drive them from one loop, since they
 // are a plain load-modify-store and two concurrent updaters could lose one.
-type Store struct {
+type store struct {
 	cur atomic.Pointer[index]
 }
 
-// NewStore returns an empty store; every lookup is Clean until Install.
-func NewStore() *Store { return &Store{} }
+// newStore returns an empty store; every lookup is Clean until Install.
+func newStore() *store { return &store{} }
 
 // Install builds the query index for snap and atomically swaps it in.
-func (s *Store) Install(snap *Snapshot) { s.cur.Store(buildIndex(snap)) }
+func (s *store) Install(snap *Snapshot) { s.cur.Store(buildIndex(snap)) }
 
 // ApplyDelta applies d to the current dataset and swaps in the result, leaving the
 // current dataset untouched on any error (no current dataset, base mismatch, or
 // failed convergence).
-func (s *Store) ApplyDelta(d *Delta) error {
+func (s *store) ApplyDelta(d *Delta) error {
 	idx := s.cur.Load()
 	if idx == nil {
 		return ErrBase
@@ -56,7 +56,7 @@ func (s *Store) ApplyDelta(d *Delta) error {
 	return nil
 }
 
-func (s *Store) current() *index { return s.cur.Load() }
+func (s *store) current() *index { return s.cur.Load() }
 
 // containsHash binary-searches the sorted confirm tier.
 func containsHash(sorted []Hash, h Hash) bool {

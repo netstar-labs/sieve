@@ -7,13 +7,17 @@ import (
 )
 
 func TestStoreApplyDelta(t *testing.T) {
-	s := NewStore()
+	s := newStore()
 	base := NewSnapshot("p", "e", "i", 1, hashN(10))
 	s.Install(base)
 
 	adds := []Hash{HashURL("new")}
 	want := NewSnapshot("p", "e", "i", 2, combine(base.Hashes, adds, nil))
-	d := &Delta{Base: base.Header.SetHash, Target: want.Header.SetHash, Epoch: 2, Adds: adds}
+	d := &Delta{
+		Base: base.Header.SetHash, Target: want.Header.SetHash,
+		Profile: "p", Expander: "e", IDNA: "i",
+		Epoch: 2, Adds: adds,
+	}
 	if err := s.ApplyDelta(d); err != nil {
 		t.Fatalf("ApplyDelta: %v", err)
 	}
@@ -23,7 +27,7 @@ func TestStoreApplyDelta(t *testing.T) {
 }
 
 func TestStoreApplyDeltaNoBase(t *testing.T) {
-	if err := NewStore().ApplyDelta(&Delta{}); !errors.Is(err, ErrBase) {
+	if err := newStore().ApplyDelta(&Delta{}); !errors.Is(err, ErrBase) {
 		t.Errorf("got %v, want ErrBase on empty store", err)
 	}
 }
@@ -31,7 +35,7 @@ func TestStoreApplyDeltaNoBase(t *testing.T) {
 // Run with -race: lock-free reads must never observe a torn index while writers
 // swap snapshots underneath them.
 func TestStoreConcurrentSwap(t *testing.T) {
-	s := NewStore()
+	s := newStore()
 	s.Install(NewSnapshot("p", "e", "i", 0, hashN(1000)))
 
 	var wg sync.WaitGroup
