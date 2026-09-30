@@ -4,6 +4,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 )
 
 func mustHave(t *testing.T, got []string, want ...string) {
@@ -66,5 +67,51 @@ func TestExpandHostCapFive(t *testing.T) {
 	}
 	if len(hosts) > 5 {
 		t.Errorf("host variants = %d, want <= 5: %v", len(hosts), hosts)
+	}
+}
+
+// hostVariants/pathVariants used to strings.Split/SplitAfter the WHOLE input
+// before the cap ever applied — cost proportional to input length regardless
+// of the always-<=30 output, on Lookup's hot path with caller-supplied,
+// potentially adversarial input (found in an A1 audit pass). Measured on the
+// pre-fix code: 2M short host labels cost ~27ms, 2M short path segments
+// ~35ms (vs. ~1-2ms after the bounded-scan fix) — a many-short-tokens input
+// is where Split's per-label slice allocation actually bites; a single giant
+// token with no delimiter costs about the same either way (one O(n) scan to
+// prove no delimiter exists is inherent to a correct answer, not fixable by
+// rewriting the split — the fix targets the many-tokens case, so that's the
+// one this test holds to a tight bound; the single-token cases only need to
+// complete and answer correctly, not race the clock).
+func TestExpandAdversarialLengthIsBounded(t *testing.T) {
+	cases := []struct {
+		name    string
+		in      string
+		timeout time.Duration
+	}{
+		{"2M short host labels, no path", strings.Repeat("a.", 2_000_000) + "example.com", 15 * time.Millisecond},
+		{"2M short path segments", "example.com" + strings.Repeat("/a", 2_000_000), 15 * time.Millisecond},
+		{"one 4MB host label, no dots", strings.Repeat("a", 4_000_000), time.Second},
+		{"one 4MB path segment, no /", "example.com/" + strings.Repeat("a", 4_000_000), time.Second},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			done := make(chan []string, 1)
+			start := time.Now()
+			go func() { done <- Expand(c.in) }()
+			select {
+			case got := <-done:
+				if elapsed := time.Since(start); elapsed > c.timeout {
+					t.Errorf("Expand took %s, want under %s", elapsed, c.timeout)
+				}
+				if len(got) == 0 {
+					t.Error("Expand returned no expressions for a non-empty host")
+				}
+				if len(got) > maxExpressions {
+					t.Errorf("Expand returned %d expressions, want <= %d", len(got), maxExpressions)
+				}
+			case <-time.After(c.timeout):
+				t.Fatalf("Expand did not return within %s", c.timeout)
+			}
+		})
 	}
 }
