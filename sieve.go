@@ -1,6 +1,6 @@
 // Package sieve is a standalone, partner-facing URL-reputation matcher: it answers
 // "is this URL in our dataset?" against a netstar dataset distributed as an
-// immutable snapshot plus signed deltas — offline, exact, and lock-free.
+// immutable snapshot plus self-verifying deltas — offline, exact, and lock-free.
 //
 // A query URL is canonicalized (an injected [Canon] seam), expanded into ≤30
 // host-suffix × path-prefix expressions ([Expand]), and each is SHA-256 hashed.
