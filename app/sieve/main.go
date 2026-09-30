@@ -104,7 +104,7 @@ func query(args []string) int {
 	if *snapPath == "" || fs.NArg() < 1 {
 		return errf("query: -snap and at least one URL are required")
 	}
-	snap, err := readSnapshot(*snapPath)
+	snap, err := readSnapshot(*snapPath, sieve.DefaultMaxBody)
 	if err != nil {
 		return errf("query: %v", err)
 	}
@@ -132,11 +132,11 @@ func diff(args []string) int {
 	if *basePath == "" || *targetPath == "" || *out == "" {
 		return errf("diff: -base, -target, and -o are required")
 	}
-	base, err := readSnapshot(*basePath)
+	base, err := readSnapshot(*basePath, sieve.DefaultMaxBody)
 	if err != nil {
 		return errf("diff: base: %v", err)
 	}
-	target, err := readSnapshot(*targetPath)
+	target, err := readSnapshot(*targetPath, sieve.DefaultMaxBody)
 	if err != nil {
 		return errf("diff: target: %v", err)
 	}
@@ -178,16 +178,11 @@ func apply(args []string) int {
 	if *snapPath == "" || *deltaPath == "" || *out == "" {
 		return errf("apply: -snap, -delta, and -o are required")
 	}
-	base, err := readSnapshot(*snapPath)
+	base, err := readSnapshot(*snapPath, sieve.DefaultMaxBody)
 	if err != nil {
 		return errf("apply: base: %v", err)
 	}
-	f, err := os.Open(*deltaPath)
-	if err != nil {
-		return errf("apply: delta: %v", err)
-	}
-	defer f.Close()
-	d, err := sieve.DecodeDelta(f)
+	d, err := readDelta(*deltaPath, sieve.DefaultMaxBody)
 	if err != nil {
 		return errf("apply: delta: %v", err)
 	}
@@ -233,13 +228,40 @@ func fetch(args []string) int {
 	return 0
 }
 
-func readSnapshot(path string) (*sieve.Snapshot, error) {
+// readSnapshot and readDelta share a size cap with the fetch path (fetch.go's
+// fetchDecode): a well-formed file with a genuinely huge, non-lying entry
+// count is bounded only by sieve.maxSnapCount (2^30) absent this check — a
+// ~34 GiB file, or a diff/apply combining two such files, would otherwise
+// make the CLI attempt to allocate tens of GB with zero governance. A crafted
+// lying count is already rejected cheaply by Decode/DecodeDelta themselves
+// (ErrTruncated on the first short read); this cap is for a real oversized
+// file that decodes exactly as it claims.
+func readSnapshot(path string, maxBody int64) (*sieve.Snapshot, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
-	return sieve.Decode(f)
+	lr := &io.LimitedReader{R: f, N: maxBody + 1}
+	snap, err := sieve.Decode(lr)
+	if lr.N <= 0 {
+		return nil, sieve.ErrBodyTooLarge
+	}
+	return snap, err
+}
+
+func readDelta(path string, maxBody int64) (*sieve.Delta, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	lr := &io.LimitedReader{R: f, N: maxBody + 1}
+	d, err := sieve.DecodeDelta(lr)
+	if lr.N <= 0 {
+		return nil, sieve.ErrBodyTooLarge
+	}
+	return d, err
 }
 
 func writeFile(path string, encode func(io.Writer) error) error {
