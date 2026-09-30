@@ -7,7 +7,7 @@
 // A compact cuckoo prefilter and a sorted uint32 prefix [Set] discard true
 // negatives fast; a surviving prefix is confirmed against a sorted full-hash tier,
 // so a match is exact (no ~1-in-4-billion prefix collision, and no remote
-// round-trip). The live dataset sits behind an atomic pointer in a [Store] for
+// round-trip). The live dataset sits behind an atomic pointer in a store for
 // lock-free reads and whole-snapshot swaps.
 //
 // sieve is the lookup side of a two-part contract: canonicalization ("one URL →
@@ -58,22 +58,22 @@ type Match struct {
 // Listed reports the common case succinctly.
 func (m Match) IsListed() bool { return m.Verdict == Listed }
 
-// Matcher answers reputation lookups against a live [Store], canonicalizing and
+// Matcher answers reputation lookups against a live store, canonicalizing and
 // expanding each URL first. Safe for concurrent use; reads are lock-free.
 type Matcher struct {
-	store *Store
+	store *store
 	canon Canon
 }
 
 // New returns a matcher with an empty store. Wire canon to the same canonicalizer
 // the dataset was built under (see the header stamps); a nil canon treats the
 // input as already canonical.
-func New(canon Canon) *Matcher { return &Matcher{store: NewStore(), canon: canon} }
+func New(canon Canon) *Matcher { return &Matcher{store: newStore(), canon: canon} }
 
 // Install swaps in a new dataset snapshot.
 func (m *Matcher) Install(snap *Snapshot) { m.store.Install(snap) }
 
-// ApplyDelta evolves the current dataset by a delta (see [Store.ApplyDelta]).
+// ApplyDelta evolves the current dataset by a delta (see store.ApplyDelta).
 func (m *Matcher) ApplyDelta(d *Delta) error { return m.store.ApplyDelta(d) }
 
 // Lookup canonicalizes, expands, and tests rawURL against the current dataset.

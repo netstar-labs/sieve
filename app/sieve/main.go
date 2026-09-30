@@ -15,6 +15,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/hex"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -280,8 +281,7 @@ func writeFile(path string, encode func(io.Writer) error) error {
 		return err
 	}
 	if err := encode(f); err != nil {
-		f.Close()
-		return err
+		return errors.Join(err, f.Close())
 	}
 	return f.Close()
 }

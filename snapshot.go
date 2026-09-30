@@ -32,7 +32,6 @@ var (
 // contract — build and query must pin the same one or Unicode-host hashes silently
 // won't match (a blocklist false-negative), so it travels in the header.
 type Header struct {
-	Version  uint8
 	Profile  string
 	Expander string
 	IDNA     string
@@ -55,7 +54,7 @@ func NewSnapshot(profile, expander, idna string, epoch uint64, hashes []Hash) *S
 	sorted := sortedDedup(hashes)
 	return &Snapshot{
 		Header: Header{
-			Version: snapVersion, Profile: profile, Expander: expander, IDNA: idna,
+			Profile: profile, Expander: expander, IDNA: idna,
 			Epoch: epoch, Count: uint32(len(sorted)), SetHash: datasetHash(sorted),
 		},
 		Hashes: sorted,
@@ -117,7 +116,7 @@ func Decode(r io.Reader) (*Snapshot, error) {
 	if ver != snapVersion {
 		return nil, fmt.Errorf("%w: %d", ErrVersion, ver)
 	}
-	h := Header{Version: ver}
+	h := Header{}
 	if h.Profile, err = readField(br); err != nil {
 		return nil, err
 	}

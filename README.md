@@ -36,7 +36,7 @@ dependencies**. A match is exact — the dataset ships full hashes, so there is 
 | [expr.go](expr.go) | `Expand` — host-suffix × path-prefix expansion (≤30). |
 | [snapshot.go](snapshot.go) | `Snapshot` + the attacker-facing wire codec. |
 | [delta.go](delta.go) | `Delta` + codec + self-verifying `Apply`. |
-| [store.go](store.go) | `Store` — the immutable index behind an `atomic.Pointer` swap. |
+| [store.go](store.go) | the internal `store` — the immutable index behind an `atomic.Pointer` swap, driven through `Matcher`'s `Install`/`ApplyDelta`. |
 | [fetch.go](fetch.go) | `Client` — HTTPS fetch with a body size cap + TLS public-key pinning. |
 
 `app/sieve/` is the CLI (`build`/`query`/`diff`/`apply`/`fetch`); `build/sieve`
