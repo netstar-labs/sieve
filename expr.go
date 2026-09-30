@@ -2,6 +2,7 @@ package sieve
 
 import (
 	"net"
+	"slices"
 	"strings"
 )
 
@@ -81,24 +82,35 @@ func hostVariants(host string) []string {
 	if isIP(host) {
 		return []string{host}
 	}
-	out := []string{host}
 	end := len(host)
 	// Consume the rightmost dot (the last-1 boundary) without storing it — the
 	// suffix expansion never goes below 2 labels.
 	if i := strings.LastIndexByte(host[:end], '.'); i >= 0 {
 		end = i
 	} else {
-		return out // single label, no dot at all: no shorter suffix exists
+		return []string{host} // single label, no dot at all: no shorter suffix exists
 	}
-	for len(out) < 5 {
+	// Walking right-to-left finds shorter suffixes first (last-2, then last-3,
+	// ...) — the opposite of "most specific first". Collect them separately and
+	// reverse before appending, so the returned order matches the original
+	// longest-suffix-first contract exactly (found and fixed during final
+	// pre-merge verification: the first version of this bounded scan changed
+	// the emission order, which nothing in expr_test.go's membership-only
+	// assertions caught — Lookup's Verdict is order-independent, so this
+	// wasn't a correctness bug, but Match.Expression — the specific matched
+	// string a caller sees for diagnostics/logging — could silently change
+	// which candidate gets reported first).
+	var suffixes []string
+	for len(suffixes) < 4 {
 		i := strings.LastIndexByte(host[:end], '.')
 		if i < 0 {
 			break // fewer labels than the cap; the rest IS the whole host, already added
 		}
-		out = append(out, host[i+1:])
+		suffixes = append(suffixes, host[i+1:])
 		end = i
 	}
-	return out
+	slices.Reverse(suffixes)
+	return append([]string{host}, suffixes...)
 }
 
 // pathVariants returns the exact path (with and, if it has one, without query)

@@ -115,3 +115,23 @@ func TestExpandAdversarialLengthIsBounded(t *testing.T) {
 		})
 	}
 }
+
+// hostVariants' bounded-scan rewrite (above) originally emitted suffixes in
+// the WRONG order (shortest-first, since walking right-to-left naturally
+// finds a shorter suffix before a longer one) -- a real, silent behavior
+// change from the documented "most specific first" contract that slipped
+// past every other test here, since mustHave/slices.Contains only check
+// membership, never order. Verdict/Set-membership is order-independent so
+// this wasn't a security bug, but Match.Expression (the specific matched
+// string a caller sees for diagnostics) could silently change which
+// candidate got reported. Found in an independent final-verification pass;
+// fixed by reversing the collected suffixes before returning. This test
+// asserts the full ordered slice, not just membership, so a reintroduced
+// order bug fails here specifically.
+func TestHostVariantsOrder(t *testing.T) {
+	got := hostVariants("a.b.c.example.com")
+	want := []string{"a.b.c.example.com", "b.c.example.com", "c.example.com", "example.com"}
+	if !slices.Equal(got, want) {
+		t.Errorf("hostVariants(a.b.c.example.com) = %v, want %v (most-specific-first)", got, want)
+	}
+}
