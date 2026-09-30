@@ -28,10 +28,13 @@ small, auditable trust surface.
 of the canonicalizer and a consumer of the reputation dataset the platform
 produces.
 
-**Status.** v0.1.2: the `Set`, cuckoo prefilter, snapshot/delta codecs, atomic
+**Status.** v0.2.0: the `Set`, cuckoo prefilter, snapshot/delta codecs, atomic
 store, query + confirm tier, and fetch client are implemented and tested
 (≈91% coverage, `-race` clean, decoders fuzzed). Incremental (non-rebuild) filter
 deltas and a prefix-only snapshot mode were considered and removed as
 unreachable scaffolding for a future feature with no design doc, issue, or
 caller (see `docs/audits/audit-findings.md`'s 2026-09-29 entry) — a fresh
 design would need its own justification, not a revival of the removed code.
+`Delta`'s wire format is v2 (target canonicalization stamps + `ErrStampMismatch`
+on a profile mismatch); `Expand` and the CLI's local-file reads are bounded
+against adversarial input.
