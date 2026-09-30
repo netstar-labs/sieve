@@ -7,21 +7,27 @@ sweep.
 
 ## PRIVATE-REPO-NAME SCREEN — NOT CLEAN, BLOCKER FOUND
 
-Current tracked files (README, docs/*, code comments, go.mod, CLI help) are
-clean — no private repo name appears anywhere in the working tree. **The
-leak is in git history and the issue tracker**, both of which ship with the
-repo the moment it goes public:
+**Correction, found during re-verification after remediation**: the
+original pass's "current tracked files are clean" claim below was wrong.
+It screened tracked files for the private repo codenames but not for the
+internal hostname named two paragraphs down — which was itself sitting in
+`fetch.go`, `fetch_test.go`, and `docs/userguide.md` as a real "verified
+against" example, not a placeholder. Fixed separately (see
+`audit-findings.md`'s dated addendum); left the rest of this section as
+the original historical record.
+
+Current tracked files (README, docs/\*, code comments, go.mod, CLI help)
+were believed clean at the time — no private repo name appeared anywhere
+in the working tree. **The leak is in git history and the issue
+tracker**, both of which ship with the repo the moment it goes public:
 
 - **Issue #3** ("fetch.go: pin MinVersion to TLS 1.3 explicitly") — body
-  names four currently-**private** sibling repos by path: `netstar-labs/scribe`,
-  `signet/pkg/channel/pinning.go`, `scribe/relay/pinning.go`,
-  `apiary/pkg/collector/tls.go`, `graphite/cmd/graphited/pinned_tls.go`.
-  Closed, but stays visible in the Issues tab once public.
+  named four currently-**private** sibling repos by path.
 - **Commit `747a30b`** (on `main`, tagged `v0.1.1`) and **commit `1e7937b`**
   (the pre-squash commit, still live on `origin/fix/pin-tls13` — the branch
-  was never deleted post-merge) — both commit **bodies** repeat the same
-  four repo/path references verbatim, plus internal hostnames
-  `feeds.nsgrid.co`/`bundles.nsgrid.co` as verification targets.
+  was never deleted post-merge) — both commit **bodies** repeated the same
+  repo/path references verbatim, plus an internal hostname as a
+  verification target.
 
 This is a **hard blocker per house policy** (L4-release-packaging §7): "a
 leaked private name can't be un-published." It is **not fixed on this

@@ -148,16 +148,21 @@ documented · several dedup/simplify/doc fixes · 1 BLOCKER found, not fixed.**
 **Private-repo-name leak in git history and the issue tracker.** Issue #3's
 body and two commits (`747a30b` on `main`, tagged `v0.1.1`; `1e7937b`, still
 live on `origin/fix/pin-tls13`, never deleted post-merge) name four
-currently-private sibling repos (`scribe`, `signet`, `apiary`, `graphite`)
-by path, plus internal hostnames. Per house policy (L4-release-packaging
-§7) this is a hard blocker for the visibility flip — "a leaked private name
-can't be un-published." **Not remediated on this branch**: fixing it means
-(a) editing issue #3's body via the GitHub API (safe, no history rewrite),
-and (b) rewriting the two commits' messages and deleting/replacing
-`fix/pin-tls13` (a destructive, hard-to-reverse operation on published
-history), which needs the repo owner's explicit go-ahead before it's done,
-not a unilateral action from an audit pass. See `audit-docs.md` for the
-full trace.
+currently-private sibling repos by path, plus internal hostnames. Per house
+policy (L4-release-packaging §7) this is a hard blocker for the visibility
+flip — "a leaked private name can't be un-published." **Not remediated on
+this branch**: fixing it means (a) editing issue #3's body via the GitHub
+API (safe, no history rewrite), and (b) rewriting the two commits' messages
+and deleting/replacing `fix/pin-tls13` (a destructive, hard-to-reverse
+operation on published history), which needs the repo owner's explicit
+go-ahead before it's done, not a unilateral action from an audit pass. See
+`audit-docs.md` for the full trace.
+
+**Correction, found during remediation**: the same internal hostname this
+finding names was also still live in tracked source — `fetch.go`,
+`fetch_test.go`, `docs/userguide.md` — as a real "verified against"
+example rather than a placeholder, on both `main` and this branch. Fixed
+separately, forward-only commit, no history rewrite needed for that part.
 
 ### Re-validation gate
 
