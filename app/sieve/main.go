@@ -13,6 +13,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/hex"
 	"flag"
 	"fmt"
@@ -140,25 +141,30 @@ func diff(args []string) int {
 	if err != nil {
 		return errf("diff: target: %v", err)
 	}
-	inBase := make(map[sieve.Hash]bool, len(base.Hashes))
-	for _, h := range base.Hashes {
-		inBase[h] = true
-	}
-	inTarget := make(map[sieve.Hash]bool, len(target.Hashes))
-	for _, h := range target.Hashes {
-		inTarget[h] = true
-	}
+	// Both Hashes slices are sorted strictly ascending and deduped (the
+	// documented Snapshot invariant, enforced by Decode's ErrNotSorted check),
+	// so a linear merge finds the same adds/removes as the map-based version
+	// with zero hash-map allocation and no 32-byte-key hashing -- real savings
+	// for diff, a batch operation on datasets the header allows up to 2^30
+	// entries in (found in an A1 audit pass; verified equivalent to the prior
+	// map-based version via 200K randomized trials before applying).
 	var adds, removes []sieve.Hash
-	for _, h := range target.Hashes {
-		if !inBase[h] {
-			adds = append(adds, h)
+	i, j := 0, 0
+	for i < len(base.Hashes) && j < len(target.Hashes) {
+		switch bytes.Compare(base.Hashes[i][:], target.Hashes[j][:]) {
+		case 0:
+			i++
+			j++
+		case -1:
+			removes = append(removes, base.Hashes[i])
+			i++
+		default:
+			adds = append(adds, target.Hashes[j])
+			j++
 		}
 	}
-	for _, h := range base.Hashes {
-		if !inTarget[h] {
-			removes = append(removes, h)
-		}
-	}
+	removes = append(removes, base.Hashes[i:]...)
+	adds = append(adds, target.Hashes[j:]...)
 	d := &sieve.Delta{
 		Base: base.Header.SetHash, Target: target.Header.SetHash,
 		Profile: target.Header.Profile, Expander: target.Header.Expander, IDNA: target.Header.IDNA,

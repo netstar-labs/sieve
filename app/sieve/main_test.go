@@ -50,6 +50,44 @@ func TestCLIRoundTrip(t *testing.T) {
 	}
 }
 
+// diff's adds/removes computation was rewritten from a map-based set-difference
+// to a linear merge over the two sorted Hashes slices (an A1 audit finding) --
+// this exercises both adds AND removes together (one entry stays, one is
+// removed, one is added), which the earlier adds-only round-trip test doesn't.
+func TestCLIDiffAddsAndRemoves(t *testing.T) {
+	dir := t.TempDir()
+	write := func(name, body string) string {
+		p := filepath.Join(dir, name)
+		if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+	listA := write("a.txt", "keep.com/\nremoved.com/\n")
+	listB := write("b.txt", "keep.com/\nadded.com/\n")
+	snapA := filepath.Join(dir, "a.snap")
+	snapB := filepath.Join(dir, "b.snap")
+	if rc := run([]string{"build", "-o", snapA, listA}); rc != 0 {
+		t.Fatalf("build a rc=%d", rc)
+	}
+	if rc := run([]string{"build", "-o", snapB, listB}); rc != 0 {
+		t.Fatalf("build b rc=%d", rc)
+	}
+	delta := filepath.Join(dir, "d.delta")
+	if rc := run([]string{"diff", "-base", snapA, "-target", snapB, "-o", delta}); rc != 0 {
+		t.Fatalf("diff rc=%d", rc)
+	}
+	out := filepath.Join(dir, "out.snap")
+	if rc := run([]string{"apply", "-snap", snapA, "-delta", delta, "-o", out}); rc != 0 {
+		t.Fatalf("apply rc=%d", rc)
+	}
+	got := decode(t, out)
+	want := decode(t, snapB)
+	if got.Header.SetHash != want.Header.SetHash {
+		t.Error("applied delta (adds+removes) did not reproduce the target dataset")
+	}
+}
+
 func TestCLIUsageAndErrors(t *testing.T) {
 	if rc := run(nil); rc != 2 {
 		t.Errorf("no args rc=%d, want 2", rc)
