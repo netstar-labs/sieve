@@ -60,7 +60,11 @@ func TestMatcherApplyDelta(t *testing.T) {
 	m.Install(base)
 	adds := []Hash{HashURL("bad.com/")}
 	want := NewSnapshot(base.Header.Profile, base.Header.Expander, base.Header.IDNA, 2, combine(base.Hashes, adds, nil))
-	d := &Delta{Base: base.Header.SetHash, Target: want.Header.SetHash, Epoch: 2, Adds: adds}
+	d := &Delta{
+		Base: base.Header.SetHash, Target: want.Header.SetHash,
+		Profile: base.Header.Profile, Expander: base.Header.Expander, IDNA: base.Header.IDNA,
+		Epoch: 2, Adds: adds,
+	}
 	if err := m.ApplyDelta(d); err != nil {
 		t.Fatalf("ApplyDelta: %v", err)
 	}

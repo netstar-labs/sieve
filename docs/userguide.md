@@ -73,7 +73,7 @@ strictly-increasing order, checksum / self-verifying convergence). See
 | | Magic | Body |
 |---|---|---|
 | Snapshot | `SIEV` | header (version · profile · expander · idna · epoch · count · dataset-hash) + sorted full hashes |
-| Delta | `SIVD` | version · base · target · epoch · add-count · remove-count · adds · removes (each sorted) |
+| Delta | `SIVD` | version(2) · base · target · profile · expander · idna · epoch · add-count · remove-count · adds · removes (each sorted) |
 
 ## Operational notes
 
@@ -83,3 +83,11 @@ strictly-increasing order, checksum / self-verifying convergence). See
   deployment — the format leaves both to you.
 - **Updates are cheap.** Poll for a delta and `ApplyDelta`; the swap is atomic and
   readers never block.
+- **A delta carries the target's stamp, and `Apply` checks it.** `diff` records
+  the target snapshot's Profile/Expander/IDNA in the delta; `Apply` refuses with
+  `ErrStampMismatch` if they don't match the base's current stamps. This is
+  deliberate, not a bug to route around: applying a delta across a
+  canonicalization-profile change would otherwise silently produce a snapshot
+  whose header claims the *old* profile while its hashes were computed under the
+  new one. Rebuild the full snapshot on a profile change instead of diffing
+  across it.

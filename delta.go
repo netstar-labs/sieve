@@ -8,34 +8,53 @@ import (
 	"slices"
 )
 
-const deltaVersion = 1
+const deltaVersion = 2
 
 var deltaMagic = [4]byte{'S', 'I', 'V', 'D'}
 
 var (
-	ErrBase     = errors.New("sieve: delta base does not match the snapshot")
-	ErrConverge = errors.New("sieve: delta result does not hash to the declared target")
+	ErrBase          = errors.New("sieve: delta base does not match the snapshot")
+	ErrConverge      = errors.New("sieve: delta result does not hash to the declared target")
+	ErrStampMismatch = errors.New("sieve: delta's canonicalization stamp does not match the base snapshot")
 )
 
 // Delta evolves one snapshot into the next: remove Removes, add Adds, restamp the
 // epoch. It is anchored at both ends — Base pins the snapshot it applies to and
 // Target pins the result — so applying to the wrong base is rejected and the
 // result is self-verifying (it must hash to Target).
+//
+// Profile/Expander/IDNA are the TARGET snapshot's canonicalization stamps (the
+// ones diff read from the snapshot the delta was computed against, not from
+// base). Apply refuses to proceed if they don't match base's current stamps —
+// SetHash/datasetHash is purely a function of hash bytes, so the existing
+// Base/Target convergence checks cannot by themselves detect a canonicalization-
+// profile change; without these fields (and this check) a delta computed across
+// a profile bump would apply cleanly and produce a snapshot whose header lies
+// about which scheme produced its hashes, defeating the package's own
+// documented "no silent drift" guarantee — including via the ordinary
+// fetch-and-apply path, which never otherwise sees the target snapshot at all.
 type Delta struct {
-	Base    [32]byte
-	Target  [32]byte
-	Epoch   uint64
-	Adds    []Hash // sorted strictly ascending
-	Removes []Hash // sorted strictly ascending
+	Base     [32]byte
+	Target   [32]byte
+	Profile  string
+	Expander string
+	IDNA     string
+	Epoch    uint64
+	Adds     []Hash // sorted strictly ascending
+	Removes  []Hash // sorted strictly ascending
 }
 
 // Apply produces the target snapshot from base, carrying base's stamps and the
-// delta's epoch. It refuses a mismatched base and refuses a result that does not
-// hash to Target, so a corrupt or misapplied delta can never silently diverge the
-// dataset.
+// delta's epoch. It refuses a mismatched base, refuses a result that does not
+// hash to Target, and refuses a delta whose recorded canonicalization stamp
+// doesn't match base's — so a corrupt, misapplied, or cross-profile delta can
+// never silently diverge the dataset.
 func (d *Delta) Apply(base *Snapshot) (*Snapshot, error) {
 	if base.Header.SetHash != d.Base {
 		return nil, ErrBase
+	}
+	if d.Profile != base.Header.Profile || d.Expander != base.Header.Expander || d.IDNA != base.Header.IDNA {
+		return nil, ErrStampMismatch
 	}
 	set := make(map[Hash]struct{}, len(base.Hashes)+len(d.Adds))
 	for _, h := range base.Hashes {
@@ -67,6 +86,15 @@ func (d *Delta) Encode(w io.Writer) error {
 	bw.WriteByte(deltaVersion)
 	bw.Write(d.Base[:])
 	bw.Write(d.Target[:])
+	for _, f := range []string{d.Profile, d.Expander, d.IDNA} {
+		if len(f) > maxFieldLen {
+			return ErrFieldLen
+		}
+		var l [2]byte
+		binary.BigEndian.PutUint16(l[:], uint16(len(f)))
+		bw.Write(l[:])
+		bw.WriteString(f)
+	}
 	var num [8]byte
 	binary.BigEndian.PutUint64(num[:], d.Epoch)
 	bw.Write(num[:])
@@ -107,6 +135,15 @@ func DecodeDelta(r io.Reader) (*Delta, error) {
 	}
 	if _, err := io.ReadFull(br, d.Target[:]); err != nil {
 		return nil, ErrTruncated
+	}
+	if d.Profile, err = readField(br); err != nil {
+		return nil, err
+	}
+	if d.Expander, err = readField(br); err != nil {
+		return nil, err
+	}
+	if d.IDNA, err = readField(br); err != nil {
+		return nil, err
 	}
 	var num [8]byte
 	if _, err := io.ReadFull(br, num[:]); err != nil {

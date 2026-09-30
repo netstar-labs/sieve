@@ -13,7 +13,11 @@ func TestStoreApplyDelta(t *testing.T) {
 
 	adds := []Hash{HashURL("new")}
 	want := NewSnapshot("p", "e", "i", 2, combine(base.Hashes, adds, nil))
-	d := &Delta{Base: base.Header.SetHash, Target: want.Header.SetHash, Epoch: 2, Adds: adds}
+	d := &Delta{
+		Base: base.Header.SetHash, Target: want.Header.SetHash,
+		Profile: "p", Expander: "e", IDNA: "i",
+		Epoch: 2, Adds: adds,
+	}
 	if err := s.ApplyDelta(d); err != nil {
 		t.Fatalf("ApplyDelta: %v", err)
 	}

@@ -159,7 +159,11 @@ func diff(args []string) int {
 			removes = append(removes, h)
 		}
 	}
-	d := &sieve.Delta{Base: base.Header.SetHash, Target: target.Header.SetHash, Epoch: target.Header.Epoch, Adds: adds, Removes: removes}
+	d := &sieve.Delta{
+		Base: base.Header.SetHash, Target: target.Header.SetHash,
+		Profile: target.Header.Profile, Expander: target.Header.Expander, IDNA: target.Header.IDNA,
+		Epoch: target.Header.Epoch, Adds: adds, Removes: removes,
+	}
 	if err := writeFile(*out, d.Encode); err != nil {
 		return errf("diff: %v", err)
 	}

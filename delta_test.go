@@ -34,7 +34,11 @@ func TestDeltaApply(t *testing.T) {
 	removes := []Hash{base.Hashes[0], base.Hashes[1]}
 	want := NewSnapshot("p", "e", "i", 2, combine(base.Hashes, adds, removes))
 
-	d := &Delta{Base: base.Header.SetHash, Target: want.Header.SetHash, Epoch: 2, Adds: adds, Removes: removes}
+	d := &Delta{
+		Base: base.Header.SetHash, Target: want.Header.SetHash,
+		Profile: "p", Expander: "e", IDNA: "i",
+		Epoch: 2, Adds: adds, Removes: removes,
+	}
 	got, err := d.Apply(base)
 	if err != nil {
 		t.Fatalf("Apply: %v", err)
@@ -60,19 +64,43 @@ func TestDeltaWrongBase(t *testing.T) {
 
 func TestDeltaConvergeFail(t *testing.T) {
 	base := NewSnapshot("p", "e", "i", 1, hashN(5))
-	d := &Delta{Base: base.Header.SetHash, Target: [32]byte{0x99}, Epoch: 2, Adds: []Hash{HashURL("x")}}
+	d := &Delta{
+		Base: base.Header.SetHash, Target: [32]byte{0x99},
+		Profile: "p", Expander: "e", IDNA: "i",
+		Epoch: 2, Adds: []Hash{HashURL("x")},
+	}
 	if _, err := d.Apply(base); !errors.Is(err, ErrConverge) {
 		t.Errorf("got %v, want ErrConverge", err)
 	}
 }
 
+// A delta computed against a snapshot built under a different canonicalization
+// profile must be refused, not silently applied with the wrong stamp — this is
+// the one failure mode Base/Target hash convergence cannot detect on its own,
+// since datasetHash is purely a function of hash bytes.
+func TestDeltaStampMismatch(t *testing.T) {
+	base := NewSnapshot("url/1", "expr/1", "idna:15.0.0", 1, hashN(5))
+	want := NewSnapshot("url/2", "expr/1", "idna:15.0.0", 2, base.Hashes)
+	d := &Delta{
+		Base: base.Header.SetHash, Target: want.Header.SetHash,
+		Profile: "url/2", Expander: "expr/1", IDNA: "idna:15.0.0", // target's stamps, differ from base's
+		Epoch: 2,
+	}
+	if _, err := d.Apply(base); !errors.Is(err, ErrStampMismatch) {
+		t.Errorf("got %v, want ErrStampMismatch", err)
+	}
+}
+
 func TestDeltaRoundTrip(t *testing.T) {
 	d := &Delta{
-		Base:    [32]byte{1, 2, 3},
-		Target:  [32]byte{4, 5, 6},
-		Epoch:   9,
-		Adds:    []Hash{HashURL("a"), HashURL("b")},
-		Removes: []Hash{HashURL("c")},
+		Base:     [32]byte{1, 2, 3},
+		Target:   [32]byte{4, 5, 6},
+		Profile:  "url/1",
+		Expander: "expr/1",
+		IDNA:     "idna:15.0.0",
+		Epoch:    9,
+		Adds:     []Hash{HashURL("a"), HashURL("b")},
+		Removes:  []Hash{HashURL("c")},
 	}
 	var buf bytes.Buffer
 	if err := d.Encode(&buf); err != nil {
@@ -84,6 +112,9 @@ func TestDeltaRoundTrip(t *testing.T) {
 	}
 	if got.Base != d.Base || got.Target != d.Target || got.Epoch != d.Epoch {
 		t.Error("header mismatch")
+	}
+	if got.Profile != d.Profile || got.Expander != d.Expander || got.IDNA != d.IDNA {
+		t.Errorf("stamp mismatch: got %+v", got)
 	}
 	if len(got.Adds) != 2 || len(got.Removes) != 1 {
 		t.Fatalf("adds=%d removes=%d", len(got.Adds), len(got.Removes))
