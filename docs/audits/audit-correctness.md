@@ -32,10 +32,24 @@ identical output against every case in `expr_test.go`.
 **Fix**: `hostVariants`/`pathVariants` rewritten as bounded right/left-
 anchored scans (`strings.LastIndexByte`/`strings.IndexByte`, stopping after
 finding enough labels/segments for the cap) instead of an eager full split.
-Zero behavior change (verified against every existing test case). This also
-removed the `seen`-maps in `Expand`/`pathVariants`, independently found dead
-by auditor A (see `audit-simplify.md`) — duplicates in the host × path cross
-product are structurally impossible.
+This also removed the `seen`-maps in `Expand`/`pathVariants`, independently
+found dead by auditor A (see `audit-simplify.md`) — duplicates in the host ×
+path cross product are structurally impossible.
+
+**Correction from a second finding, caught at final pre-merge verification**:
+the first version of this rewrite was membership-preserving but NOT
+order-preserving — walking right-to-left naturally finds a shorter host
+suffix before a longer one, so it emitted suffixes least-specific-first,
+the opposite of the original's and the doc comment's "most specific first".
+Nothing in `expr_test.go` caught this (every assertion checks membership via
+`slices.Contains`, never order). Not a security or `Verdict` regression
+(every expression is still tried regardless of order), but
+`Match.Expression` — the specific matched string a caller sees for
+diagnostics — could silently change which candidate got reported first.
+Fixed by collecting the found suffixes separately and reversing them before
+returning (same bounded scan, negligible extra cost). Regression test added
+(`TestHostVariantsOrder`, asserting the full ordered slice via
+`slices.Equal`, not membership) and sabotage-verified.
 
 **Residual, explicitly not claimed as fixed**: a single adversarial token
 with NO delimiter at all still costs one O(n) scan to correctly conclude no

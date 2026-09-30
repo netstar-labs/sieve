@@ -94,8 +94,13 @@ documented · several dedup/simplify/doc fixes · 1 BLOCKER found, not fixed.**
   before the cap ever applied; a crafted host/path with many short labels/
   segments cost ~27-35ms and a proportional multi-MB allocation per `Lookup`
   call (also found: a long dotted host with no path at all is exploitable
-  the same way). Fixed with a bounded-scan rewrite, byte-for-byte identical
-  output verified against every existing test.
+  the same way). Fixed with a bounded-scan rewrite. A final pre-merge
+  skeptic pass caught that the first version of this rewrite preserved
+  membership but not host-suffix *order* (least-specific-first instead of
+  the documented most-specific-first) — no security/`Verdict` impact, but
+  `Match.Expression` could silently change; corrected by reversing the
+  collected suffixes, with a new order-asserting regression test
+  (`TestHostVariantsOrder`) covering the exact gap that let it through.
 - **[security, sev:med] CLI local-file reads (`readSnapshot`/`apply`'s delta
   read) had no size cap**, unlike the fetch path. A well-formed multi-GB
   file could make the CLI attempt an unbounded allocation. Fixed by
