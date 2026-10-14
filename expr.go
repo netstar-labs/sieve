@@ -49,8 +49,12 @@ func Expand(canonical string) []string {
 
 // splitHostPath strips a scheme and splits into host and path (path always begins
 // with "/"). The host ends at the first "/" or "?".
+//
+// A scheme counts only at the very start of u. A "://" later on belongs to the
+// path or query ("example.com/a?u=http://evil.com/x"); treating the first "://"
+// anywhere as a scheme would discard the real host and expand the embedded one.
 func splitHostPath(u string) (host, path string) {
-	if i := strings.Index(u, "://"); i >= 0 {
+	if i := schemeEnd(u); i > 0 && strings.HasPrefix(u[i+1:], "//") {
 		u = u[i+3:]
 	}
 	slash := strings.IndexByte(u, '/')
@@ -148,6 +152,24 @@ func pathVariants(path string) []string {
 		dirs++
 	}
 	return out
+}
+
+// schemeEnd returns the index of the ':' ending a leading RFC 3986 scheme
+// (ALPHA *( ALPHA / DIGIT / "+" / "-" / "." )), or -1. It stops at the first byte
+// that cannot be in a scheme, so its cost is bounded by the scheme, not by u.
+func schemeEnd(u string) int {
+	for i := 0; i < len(u); i++ {
+		c := u[i]
+		switch {
+		case c|0x20 >= 'a' && c|0x20 <= 'z':
+		case i > 0 && (c >= '0' && c <= '9' || c == '+' || c == '-' || c == '.'):
+		case i > 0 && c == ':':
+			return i
+		default:
+			return -1
+		}
+	}
+	return -1
 }
 
 func isIP(host string) bool {
