@@ -135,3 +135,27 @@ func TestHostVariantsOrder(t *testing.T) {
 		t.Errorf("hostVariants(a.b.c.example.com) = %v, want %v (most-specific-first)", got, want)
 	}
 }
+
+// TestExpandSchemeOnlyAtStart: a "://" counts as a scheme only at the very start
+// of the key. A schemeless host+path key whose query or path carries a URL
+// ("example.com/a?u=http://evil.com/x") must expand under its own host, not the
+// embedded one; otherwise a lookup tests the wrong domain and an attacker can
+// steer it by appending a URL to a benign link.
+func TestExpandSchemeOnlyAtStart(t *testing.T) {
+	for _, tc := range []struct {
+		in   string
+		want []string
+	}{
+		{"example.com/a?u=http://evil.com/x", []string{"example.com/a?u=http://evil.com/x", "example.com/a", "example.com/"}},
+		{"example.com?u=http://evil.com/x", []string{"example.com/?u=http://evil.com/x", "example.com/"}},
+		{"example.com/r/https://evil.com/x", []string{"example.com/r/https://evil.com/x", "example.com/", "example.com/r/", "example.com/r/https:/", "example.com/r/https://"}},
+		{"https://example.com/a?u=http://evil.com/x", []string{"example.com/a?u=http://evil.com/x", "example.com/a", "example.com/"}},
+		{"HTTP://example.com/a", []string{"example.com/a", "example.com/"}},
+		{"custom+v1.0://example.com/a", []string{"example.com/a", "example.com/"}},
+	} {
+		got := Expand(tc.in)
+		if !slices.Equal(got, tc.want) {
+			t.Errorf("Expand(%q) = %q; want %q", tc.in, got, tc.want)
+		}
+	}
+}
